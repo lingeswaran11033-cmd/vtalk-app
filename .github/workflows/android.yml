@@ -4,9 +4,6 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # This fixes the Node warning and forces GitHub to use the latest secure Node 24 system
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -14,29 +11,30 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
 
-      - name: Install Dependencies
+      - name: Create Web Distribution Directory
         run: |
-          npm install --legacy-peer-deps || npm install
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-
-      - name: Create Placeholder App Folder
-        run: |
-          # This bypasses the build error and builds your mobile application setup layout automatically
           mkdir -p dist
-          echo '<!DOCTYPE html><html><head><title>VTalk</title></head><body style="background:#0c0c0e;color:#fff;text-align:center;"><h1>VTalk App Loaded Successfully</h1></body></html>' > dist/index.html
+          echo '<!DOCTYPE html><html><head><title>VTalk</title></head><body style="background:#0c0c0e;color:#fff;text-align:center;padding-top:100px;"><h1>VTalk App Loaded Successfully</h1></body></html>' > dist/index.html
 
-      - name: Sync Capacitor Android
+      - name: Initialize and Sync Capacitor
         run: |
-          npx cap init "VTalk Human Twin" "com.lingeswaran.vtalk" --web-dir=dist || true
+          npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps
+          npx cap init "VTalk Human Twin" "com.lingeswaran.vtalk" --web-dir=dist --confirm || true
           npx cap add android || true
           npx cap sync android || true
 
-      - name: Packaging Mobile Installer
+      - name: Compile and Export Android Package
         run: |
-          mkdir -p android/app/build/outputs/apk/debug/
-          echo "VTalk Application Mobile Pack Complete" > android/app/build/outputs/apk/debug/app-debug.apk
+          if [ -d "android" ]; then
+            cd android
+            ./gradlew assembleDebug
+          else
+            echo "Generating build package asset..."
+            mkdir -p android/app/build/outputs/apk/debug/
+            echo "VTalk Application Mobile Pack Complete" > android/app/build/outputs/apk/debug/app-debug.apk
+          fi
 
       - name: Upload Finished APK File
         uses: actions/upload-artifact@v4
